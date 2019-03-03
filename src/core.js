@@ -85,7 +85,7 @@ module.exports = function core(rpcUrl) {
         var abi = compiledContract.contracts[`:${_contractName}`].interface;
 
 
-        fs.writeFile(`/contract_detail/${_contractName}_abi.json`, abi, function (err, file) {
+        fs.writeFile(`../contract_detail_repo/${_contractName}_abi.json`, abi, function (err, file) {
             if (!err) {
                 console.log('writed abi! ');
 
@@ -94,7 +94,7 @@ module.exports = function core(rpcUrl) {
             }
         });
 
-        fs.writeFile(`/contract_detail/${_contractName}_bytecode.json`, bytecode, function (err, file) {
+        fs.writeFile(`../contract_detail_repo/${_contractName}_bytecode.json`, bytecode, function (err, file) {
             if (!err) {
                 console.log('writed bytecode! ');
 
@@ -108,9 +108,9 @@ module.exports = function core(rpcUrl) {
 
 
     this.deploy = function (param, sender, _password, _contractName) {
-        let abi = fs.readFileSync(`/contract_detail/${_contractName}_abi.json`, 'utf8');
+        let abi = fs.readFileSync(`../contract_detail_repo/${_contractName}_abi.json`, 'utf8');
         let abiArr = JSON.parse(abi);
-        let bytecode = fs.readFileSync(`/contract_detail/${_contractName}_bytecode.json`, 'utf8');
+        let bytecode = fs.readFileSync(`../contract_detail_repo/${_contractName}_bytecode.json`, 'utf8');
 
         var gasEstimate;
         //create contract instance to deploy
@@ -132,7 +132,7 @@ module.exports = function core(rpcUrl) {
                         console.log(`transaction hash ::  ${txHash}`);
                     }).then(contractInstance => {
                         console.log(`contract address ::  ${contractInstance.options.address}`);
-                        fs.writeFileSync(`/contract_detail/${_contractName}_address.js`, contractInstance.options.address);
+                        fs.writeFileSync(`../contract_detail_repo/${_contractName}_address.js`, contractInstance.options.address);
                     });
 
                 });
@@ -177,9 +177,9 @@ module.exports = function core(rpcUrl) {
 
     // utils send transaciton function & Contract Process 
     async function UtilsContractProcess(value, privateKey, _contract, method, parameter_Array, execution, test, time) {
-        let abi = fs.readFileSync(`/contract_detail/${_contract}_abi.json`, 'utf8');
+        let abi = fs.readFileSync(`../contract_detail_repo/${_contract}_abi.json`, 'utf8');
         var abiArr = JSON.parse(abi);
-        let contractAddress = fs.readFileSync(`/contract_detail/${_contract}_address.js`, 'utf8');
+        let contractAddress = fs.readFileSync(`../contract_detail_repo/${_contract}_address.js`, 'utf8');
         var contractInstance = new web3.eth.Contract(abiArr, contractAddress); //如果是接上 sendSignedTx fucntion，contract address 並不用再contract instance 那邊建立
 
         let arr = [];
