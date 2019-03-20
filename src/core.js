@@ -120,11 +120,11 @@ module.exports = function core(rpcUrl) {
 
 
     this.readSC = function (contract, method, parameters) {
-        return UtilsContractProcess(0, '', contract, method, parameters, 'read', false, 0);
+        return UtilsContractProcess(from,0, '', contract, method, parameters, 'read', false, 0);
     }
 
     this.writeSC = function (contract, method, parameters, value, privateKey) {
-        UtilsContractProcess(value, privateKey, contract, method, parameters, 'write', false, 0);
+        UtilsContractProcess(from,value, privateKey, contract, method, parameters, 'write', false, 0);
     }
 
     this.ListeningEvent = function (type, host, port) {
@@ -157,7 +157,7 @@ module.exports = function core(rpcUrl) {
 
 
     // utils send transaciton function & Contract Process 
-    async function UtilsContractProcess(value, privateKey, _contract, method, parameters, execution, test, time) {
+    async function UtilsContractProcess(_from,value, privateKey, _contract, method, parameters, execution, test, time) {
         let contract_info = fs.readFileSync(`../contract_detail_repo/${_contract}_info.json`, 'utf8'),
             info = JSON.parse(contract_info);
 
@@ -186,7 +186,7 @@ module.exports = function core(rpcUrl) {
 
         let data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
         if (execution == 'write') {
-            if (!test) UtilsSendTx(address, value, data, privateKey);
+            if (!test) UtilsSendTx(_from,address, value, data, privateKey);
             else UtilsSendTxForTest(address, value, data, privateKey, time);
         } else if (execution == 'read') {
             var txobject = {
@@ -204,7 +204,7 @@ module.exports = function core(rpcUrl) {
 
     }
 
-    async function UtilsSendTx(_to, _value, _data, privateKey) {
+    async function UtilsSendTx(_from,_to, _value, _data, privateKey) {
         let txObject = {
             to: _to,
             value: _value,
