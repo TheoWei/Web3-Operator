@@ -105,26 +105,22 @@ module.exports = function core(rpcUrl) {
         return true;
     }
 
-
-    this.privateKey_deploy = function (contract, privateKey) {
-        let contract_info = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
-        let info = JSON.parse(contract_info);
-
-        let txObject = { data: info.bytecode, gas: await web3.eth.estimateGas({ data: bytecode }) };
-        console.log('read to send');
-        let signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
-        let txReceipt = await web3.etj.sendSignedTransaction(signed.rawTransaction);
-        info.address = txReceipt.contractAddress;
-        fs.writeFileSync(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(info), 'utf8');        
+    this.privateKeyDeploy = function (contract, privateKey) {
+        UtilsContractDeploy(contract, '', '', privateKey);
+    }
+    this.accountDeploy = function (contract, from, password) {
+        UtilsContractDeploy(contract, from, password, '');
     }
 
-
-    this.readSC = function (contract, method, parameters) {
-        return UtilsContractProcess(from,0, '', contract, method, parameters, 'read', false, 0);
+    this.readContract = function (contract, method, parameters) {
+        return UtilsContractProcess(contract, method, parameters,0, '', '', 'read', false, 0);
     }
 
-    this.writeSC = function (contract, method, parameters, value, privateKey) {
-        UtilsContractProcess(from,value, privateKey, contract, method, parameters, 'write', false, 0);
+    this.accountWriteContract = function (from, contract, method, parameters, value, password) {
+        UtilsContractProcess(from, contract,  method,  parameters,  value, '',  password, 'write', false, 0);
+    }
+    this.privateKeylWriteContract = function (contract, method, parameters, value, privateKey) {
+        UtilsContractProcess('', contract,  method,  parameters,  value,  privateKey, '', 'write', false, 0);
     }
 
     this.ListeningEvent = function (type, host, port) {
@@ -157,12 +153,30 @@ module.exports = function core(rpcUrl) {
 
 
     // utils send transaciton function & Contract Process 
-    async function UtilsContractProcess(_from,value, privateKey, _contract, method, parameters, execution, test, time) {
+    async function UtilsContractDeploy(_contract, _from, _password, _privateKey){
+        let contract_info = fs.readFileSync(`../contract_detail_repo/${_contract}_info.json`, 'utf8');
+        let info = JSON.parse(contract_info);
+
+        let txObject = {data: info.bytecode, gas: await web3.eth.estimateGas({ data: bytecode })};
+        console.log('read to send');
+
+        let signed;
+        if(_password !== '') signed = await web3.eth.personal.sign(txObject,_from,_password);
+        else if(_privateKey !== '') signed = await web3.eth.accounts.signTransaction(txObject, _privateKey);
+        else return 'didn\'t insert account key or password'; 
+
+        let txReceipt = await web3.etj.sendSignedTransaction(signed.rawTransaction);
+
+        info.address = txReceipt.contractAddress;
+        fs.writeFileSync(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(info), 'utf8');  
+    }
+
+    async function UtilsContractProcess(_from, _contract, _method, _parameters, _value, _privateKey, _password, execution, test, time) {
         let contract_info = fs.readFileSync(`../contract_detail_repo/${_contract}_info.json`, 'utf8'),
             info = JSON.parse(contract_info);
 
         let abi = JSON.parse(info.abi),
-            address = info.address;
+        _address = info.address;
 
         let arr = [],
             methodABI = {},
@@ -184,13 +198,13 @@ module.exports = function core(rpcUrl) {
             }
         }
 
-        let data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
+        let _data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
         if (execution == 'write') {
-            if (!test) UtilsSendTx(_from,address, value, data, privateKey);
+            if (!test) UtilsSendTx(_from, _address, _value, _data, _password, _privateKey);
             else UtilsSendTxForTest(address, value, data, privateKey, time);
         } else if (execution == 'read') {
-            var txobject = {
-                to: address,
+            let txobject = {
+                to: _address,
                 data: data
             };
             let returnData = await web3.eth.call(txobject);
@@ -204,18 +218,29 @@ module.exports = function core(rpcUrl) {
 
     }
 
-    async function UtilsSendTx(_from,_to, _value, _data, privateKey) {
+    async function UtilsSendTx(_from,_to, _value, _data, _password, _privateKey) {
         let txObject = {
             to: _to,
             value: _value,
             data: _data,
             gas: await web3.eth.estimateGas({ to: _to, data: _data })
         }
-        if (!privateKey) txObject.nonce = await web3.eth.getTransactionCount(_from);
+        if (!_privateKey) txObject.nonce = await web3.eth.getTransactionCount(_from);
 
         console.log('ready to send');
-        let signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
 
+        let signed;
+        if(_from !== ''){
+            txObject.nonce = await web3.eth.getTransactionCount(_from);
+            txObject.from = _from;
+            signed = await web3.eth.personal.sign(txObject,_from,_password);
+        }
+        else if(prikey !== ''){
+            let address = await web3.eth.accounts.privateKeyToAccount(_privateKey);
+            txObject.nonce = await web3.eth.getTransactionCount(address);
+            signed = await web3.eth.accounts.signTransaction(txObject, _privateKey);
+        }
+            
         web3.eth.sendSignedTransaction(signed.rawTransaction)
             .on('receipt', (receipt) => {
                 console.log(receipt);

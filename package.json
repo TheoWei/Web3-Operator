@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/TheoWei/Web3-Operator/issues"
   },
-  "homepage": "https://github.com/TheoWei/Web3-Operator#readme"
+  "homepage": "https://github.com/TheoWei/Web3-Operator#readme",
+  "dependencies": {
+    "web3": "^1.0.0-beta.50"
+  }
 }
