@@ -161,7 +161,7 @@ module.exports = function core(rpcUrl) {
         console.log('read to send');
 
         let signed;
-        if(_password !== '') signed = await web3.eth.personal.sign(txObject,_from,_password);
+        if(_password !== '') signed = await web3.eth.personal.signTransaction(txObject,_from,_password);
         else if(_privateKey !== '') signed = await web3.eth.accounts.signTransaction(txObject, _privateKey);
         else return 'didn\'t insert account key or password'; 
 
@@ -233,7 +233,7 @@ module.exports = function core(rpcUrl) {
         if(_password !== ''){
             txObject.nonce = await web3.eth.getTransactionCount(_from);
             txObject.from = _from;
-            signed = await web3.eth.personal.sign(txObject,_from,_password);
+            signed = await web3.eth.personal.signTransaction(txObject,_from,_password);
         }
         else if(_privateKey !== ''){
             let address = await web3.eth.accounts.privateKeyToAccount(_privateKey);
