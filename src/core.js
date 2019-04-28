@@ -1,45 +1,44 @@
-module.exports = function core(rpcUrl) {
-  const fs = require('fs');
-  const Web3 = require('web3');
-  const solc = require('solc');
+"use strict";
 
-  const web3 = new Web3(rpcUrl);
-  if (web3.eth.net.isListening()) console.log('network connected!');
+const fs = require('fs');
+const Web3 = require('web3');
+const solc = require('solc');
 
-  // account operation
-  this.createAccount = function (random) {
-    const accountObject = web3.eth.accounts.create(random);
-    console.log('Here\'s account object::  ', accountObject);
+class web3Operator {
+  constructor(rpcUrl) {
+    var web3 = new Web3(rpcUrl);
+    if (web3.eth.net.isListening()) console.log('network connected!');
+  }
+
+    // account operation 
+  createAccount = (random) => {
+    let accountObject = web3.eth.accounts.create(random);
     return accountObject;
-  };
-  this.queryAccount = (privateKey) => {
-    const account = web3.eth.accounts.privateKeyToAccount(privateKey);
-    console.log('Your account address::  ', account.address);
+  }
+  queryAccount = (prikey) => {
+    let account = web3.eth.accounts.privateKeyToAccount(prikey);
     return account.address;
-  };
-  this.decryptAccount = async (keyStoreJson, password) => {
-    const decrypted = await web3.eth.accounts.decrypt(keyStoreJson, password);
-    console.log('decrpyt one of accounts from node:: ', decrypted);
+  }
+  decryptAccount = async (keyStoreJson, password) => {
+    let decrypted = await web3.eth.accounts.decrypt(keyStoreJson, password);
     return decrypted;
-  };
-  this.encryptAccount = async (privateKey, password) => {
-    const keyStoreJson = await web3.eth.accounts.encrypt(privateKey, password);
-    console.log('Here\'s your keyStoreJson::', keyStoreJson);
-    return keyStoreJson;
-  };
-  this.importKey = async (privateKey, password) => {
-    const address = await web3.eth.personal.importRawKey(privateKey, password);
-    console.log('This is your account address:: ', address);
+  }
+  importKey = async (privateKey, password) => {
+    let address = await web3.eth.personal.importRawKey(privateKey, password);
     return true;
-  };
+  }
+  encryptAccount = async (privateKey, password) => {
+    let keyStoreJson = await web3.eth.accounts.encrypt(privateKey, password);
+    return keyStoreJson;
+  }
+  sha3_hash = (data) => {
+    let hash_data = web3.utils.sha3(JSON.stringify(data))
+    return hash_data;
+  }
 
 
   // general function
-  this.test = async function (value) {
-    return console.log(web3.utils.asciiToHex(value));
-  };
-
-  this.Crypto = (data, exec) => {
+  Crypto = (data, exec) => {
     const crypto = require('crypto');
     const algorithm = 'aes-256-cbc';
     const key = crypto.randomBytes(32);
@@ -75,7 +74,8 @@ module.exports = function core(rpcUrl) {
       return decrypted.toString();
     }
   };
-  this.hash = function (data) {
+
+  sha3Hash = (data) => {
     data = JSON.stringify(data);
     const hash_data = web3.utils.sha3(data);
     return hash_data;
@@ -83,7 +83,7 @@ module.exports = function core(rpcUrl) {
 
 
   // contract interaction
-  this.compiles = function (contract) {
+  compiles = (contract) => {
     // load file > compile > get abi & bytecode
     console.log('read file...');
     const file = fs.readFileSync(`/contract/${contract}.sol`, 'utf8');
@@ -92,35 +92,36 @@ module.exports = function core(rpcUrl) {
     const compiledContract = solc.compile(file);
     console.log('done');
     console.log(compiledContract);
-    const bytecode = `0x${compiledContract.contracts[`:${contract}`].bytecode}`;
-    const abi = compiledContract.contracts[`:${contract}`].interface;
+    const bytecode = '0x' + compiledContract.contracts[`:${_contract}`].bytecode;
+    const abi = compiledContract.contracts[`:${_contract}`].interface;
 
     const output = { contract, abi, bytecode };
-    fs.writeFile(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(output), (err, file) => {
-      !err ? console.log('writed abi! ') : console.log(err);
+    return fs.writeFile(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(output), (err, file) => {
+      if (!err) console.log('writed abi! ');
+      else console.log(err);
+      return true;
     });
-    return true;
   };
 
-  this.privateKeyToDeploy = function (contract, privateKey) {
+  privateKeyToDeploy = (contract, privateKey) => {
     UtilsContractDeploy(contract, '', '', privateKey);
   };
-  this.accountToDeploy = function (contract, from, password) {
+  accountToDeploy = (contract, from, password) => {
     UtilsContractDeploy(contract, from, password, '');
   };
 
-  this.readContract = function (contract, method, parameters) {
+  readContract = (contract, method, parameters) => {
     return UtilsContractProcess(contract, method, parameters, 0, '', '', 'read', false, 0);
   };
 
-  this.accountToWriteContract = function (from, contract, method, parameters, value, password) {
+  accountToWriteContract = (from, contract, method, parameters, value, password) => {
     UtilsContractProcess(from, contract, method, parameters, value, '', password, 'write', false, 0);
   };
-  this.privateKeyToWriteContract = function (contract, method, parameters, value, privateKey) {
+  privateKeyToWriteContract = (contract, method, parameters, value, privateKey) => {
     UtilsContractProcess('', contract, method, parameters, value, privateKey, '', 'write', false, 0);
   };
 
-  this.ListeningEvent = function (type, host, port) {
+  ListeningEvent = (type, host, port) => {
     const wsUrl = `ws://${host}:${port}`;
     const wsWeb3 = new Web3(new Web3.providers.WebsocketProvider(wsUrl, { headers: { Origin: `http://${host}` } }));
 
@@ -149,113 +150,111 @@ module.exports = function core(rpcUrl) {
 
 
   // utils send transaciton function & Contract Process
-  async function UtilsContractDeploy(_contract, _from, _password, _privateKey) {
-    const contract_info = fs.readFileSync(`../contract_detail_repo/${_contract}_info.json`, 'utf8');
+  // 【test for check receipt info】
+  async function UtilsContractDeploy(contract, from, password, privateKey) {
+    const contract_info = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
     const info = JSON.parse(contract_info);
 
-    const txObject = { 
-      data: info.bytecode, 
-      gas: await web3.eth.estimateGas({ data: bytecode }) 
+    const txObject = {
+      data: info.bytecode,
+      gas: await web3.eth.estimateGas({ data: bytecode })
     };
     console.log('read to send');
 
     let signed;
-    if (_password !== '') signed = await web3.eth.personal.signTransaction(txObject, _from, _password);
-    else if (_privateKey !== '') signed = await web3.eth.accounts.signTransaction(txObject, _privateKey);
+    if (password !== '') signed = await web3.eth.personal.signTransaction(txObject, from, password);
+    else if (privateKey !== '') signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
     else return 'didn\'t insert account key or password';
 
-    const txReceipt = await web3.etj.sendSignedTransaction(signed.rawTransaction);
-
-    info.address = txReceipt.contractAddress;
-    fs.writeFileSync(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(info), 'utf8');
+    const txReceipt = await web3.eth.sendSignedTransaction(signed.rawTransaction);
+    console.log(txReceipt);
+    return { contract: txReceipt.contractAddress };
   }
 
-  async function UtilsContractProcess(_from, _contract, _method, _parameters, _value, _privateKey, _password, execution, test, time) {
-    const contract_info = fs.readFileSync(`../contract_detail_repo/${_contract}_info.json`, 'utf8');
-    const info = JSON.parse(contract_info);
 
-    const abi = JSON.parse(info.abi);
-    const _address = info.address;
+  async function UtilsContractProcess(_from, contract, method, _parameters, _value, _privateKey, _password, execution, time) {
+    const Contract = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
+    const ContractInfo = JSON.parse(Contract);
+    const abi = JSON.parse(ContractInfo.abi);
+    const { address } = ContractInfo;
+    const { methodABI, decodeTypesArray } = methodProcess(method, abi);
+    const data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
 
-    const methodABI = methodProcess(abi);
-
-    const _data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
-    if (execution == 'write') {
-      if (!test) UtilsSendTx(_from, _address, _value, _data, _password, _privateKey);
-      else UtilsSendTxForTest(address, value, data, privateKey, time);
-    } else if (execution == 'read') {
-      const txobject = {
-        to: _address,
-        data,
-      };
-      const returnData = await web3.eth.call(txobject);
+    if (execution === 'write') UtilsSendTx(_from, address, _value, data, _password, _privateKey);
+    else if (execution === 'read') {
+      const txObject = { to: address, data };
+      const returnData = await web3.eth.call(txObject);
       const result = await web3.eth.abi.decodeParameters(decodeTypesArray, returnData);
       console.log(result);
       return result;
     } else {
-
+      return new Error('send tx execution have some problem!');
     }
+
+
   }
 
-  async function UtilsSendTx(_from, _to, _value, _data, _password, _privateKey) {
-    const txObject = {
-      to: _to,
-      value: _value,
-      data: _data,
-      gas: await web3.eth.estimateGas({ to: _to, data: _data }),
+  async function UtilsSendTx(from, to, value, data, password, privateKey) {
+    let txObject = {
+      to,
+      value,
+      data,
+      gas: await web3.eth.estimateGas({ to, data }),
     };
-    if (!_privateKey) txObject.nonce = await web3.eth.getTransactionCount(_from);
 
+    if (!privateKey) txObject.nonce = await web3.eth.getTransactionCount(from);
     console.log('ready to send');
-
     let signed;
-    if (_password !== '') {
-      txObject.nonce = await web3.eth.getTransactionCount(_from);
-      txObject.from = _from;
-      signed = await web3.eth.personal.signTransaction(txObject, _from, _password);
-    } else if (_privateKey !== '') {
-      const address = await web3.eth.accounts.privateKeyToAccount(_privateKey);
+
+    if (password !== '' && privateKey === '') {
+      txObject.nonce = await web3.eth.getTransactionCount(from);
+      txObject.from = from;
+      signed = await web3.eth.personal.signTransaction(txObject, from, password);
+    } else if (privateKey !== '' && password === '') {
+      const address = await web3.eth.accounts.privateKeyToAccount(privateKey);
       txObject.nonce = await web3.eth.getTransactionCount(address);
-      signed = await web3.eth.accounts.signTransaction(txObject, _privateKey);
+      signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
+    } else {
+      return new Error('send transaction have some problem');
     }
 
     web3.eth.sendSignedTransaction(signed.rawTransaction)
-      .on('receipt', (receipt) => {
-        console.log(receipt);
-      })
-      .on('error', console.log);
+      .on('receipt', receipt => console.log(receipt))
+      .on('error', err => new Error(err))
   }
 
-  function UtilsSendTxForTest(_to, _value, _data, privateKey, time) {
-    const interval = time * 1000;
+  // 可以重複發送多個tx，只要設定loop 時間 和 結束時間即可
+  function UtilsSendTxForLoop(to, value, data, privateKey, loopTime, endTime) {
     let acceptedTxCount = 0;
+    let count = 0;
+    let nonce = await web3.eth.getTransactionCount(_from);
 
-    console.log('Test process begin! ');
+    console.log('Loop process begin! ');
     const txAcceptCounter = setInterval(async () => {
       const txObject = {
-        to: _to,
-        value: _value,
-        data: _data,
-        gas: await web3.eth.estimateGas({ to: _to, data: _data }),
+        to,
+        value,
+        data,
+        nonce: nonce + count,
+        gas: await web3.eth.estimateGas({ to, data }),
       };
+      count += 1;
 
       web3.eth.accounts.signTransaction(txObject, privateKey).then((result) => {
         web3.eth.sendSignedTransaction(result.rawTransaction)
-          .on('receipt', (receipt) => {
-            acceptedTxCount++;
-          })
+          .on('receipt', () => acceptedTxCount += 1)
           .on('error', console.log);
       });
-    }, interval);
+    }, loopTime * 1000);
 
     setTimeout(() => {
-      console.log('num of contract transaction verified in 1 min: ', acceptedTxCount);
+      console.log('num of contract transaction verified: ', acceptedTxCount);
       clearInterval(txAcceptCounter);
-    }, 60000);
+    }, endTime * 1000);
   }
 
 
-  function methodProcess(abi){
+  function methodProcess(method, abi) {
     const arr = [];
     const methodABI = {};
     const decodeTypesArray = [];
@@ -275,6 +274,9 @@ module.exports = function core(rpcUrl) {
         methodABI.inputs = arr;
       }
     }
-    return methodABI;
-  }
-};
+    return { methodABI, decodeTypesArray };
+  };
+}
+
+
+module.exports = web3Operator;
