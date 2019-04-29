@@ -1,5 +1,4 @@
 "use strict";
-
 const fs = require('fs');
 const Web3 = require('web3');
 const solc = require('solc');
@@ -91,7 +90,7 @@ class web3Operator {
 
     const compiledContract = solc.compile(file);
     console.log('done');
-    console.log(compiledContract);
+    
     const bytecode = '0x' + compiledContract.contracts[`:${_contract}`].bytecode;
     const abi = compiledContract.contracts[`:${_contract}`].interface;
 
@@ -99,7 +98,6 @@ class web3Operator {
     return fs.writeFile(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(output), (err, file) => {
       if (!err) console.log('writed abi! ');
       else console.log(err);
-      return true;
     });
   };
 
@@ -111,14 +109,21 @@ class web3Operator {
   };
 
   readContract = (contract, method, parameters) => {
-    return UtilsContractProcess(contract, method, parameters, 0, '', '', 'read', false, 0);
+    return UtilsContractProcess(contract, method, parameters, 0, '', '', 'read');
   };
 
   accountToWriteContract = (from, contract, method, parameters, value, password) => {
-    UtilsContractProcess(from, contract, method, parameters, value, '', password, 'write', false, 0);
+    UtilsContractProcess(from, contract, method, parameters, value, '', password, 'write');
   };
   privateKeyToWriteContract = (contract, method, parameters, value, privateKey) => {
-    UtilsContractProcess('', contract, method, parameters, value, privateKey, '', 'write', false, 0);
+    UtilsContractProcess('', contract, method, parameters, value, privateKey, '', 'write');
+  };
+
+  accountToLoopWriteContract = (from, contract, method, parameters, value, password, loopTime, endTime) => {
+    UtilsContractProcess(from, contract, method, parameters, value, '', password, 'loopWrite', loopTime, endTime);
+  };
+  privateKeyToLoopWriteContract = (contract, method, parameters, value, privateKey, loopTime, endTime) => {
+    UtilsContractProcess('', contract, method, parameters, value, privateKey, '', 'loopWrite', loopTime, endTime);
   };
 
   ListeningEvent = (type, host, port) => {
@@ -151,50 +156,52 @@ class web3Operator {
 
   // utils send transaciton function & Contract Process
   // 【test for check receipt info】
-  async function UtilsContractDeploy(contract, from, password, privateKey) {
-    const contract_info = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
-    const info = JSON.parse(contract_info);
+  UtilsContractDeploy = async (contract, from, password, privateKey) => {
+    const Contract = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
+    const ContractInfo = JSON.parse(Contract);
+    const { bytecode } = ContractInfo;
 
     const txObject = {
-      data: info.bytecode,
+      data: bytecode,
       gas: await web3.eth.estimateGas({ data: bytecode })
     };
     console.log('read to send');
 
     let signed;
-    if (password !== '') signed = await web3.eth.personal.signTransaction(txObject, from, password);
-    else if (privateKey !== '') signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
-    else return 'didn\'t insert account key or password';
+    if (password !== '' && privateKey === '') signed = await web3.eth.personal.signTransaction(txObject, from, password);
+    else if (privateKey !== '' && password === '') signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
+    else return new Error('didn\'t insert account key or password');
 
-    const txReceipt = await web3.eth.sendSignedTransaction(signed.rawTransaction);
-    console.log(txReceipt);
-    return { contract: txReceipt.contractAddress };
+    return web3.eth.sendSignedTransaction(signed.rawTransaction)
+            .on('receipt', receipt => {return receipt});
   }
 
 
-  async function UtilsContractProcess(_from, contract, method, _parameters, _value, _privateKey, _password, execution, time) {
+  UtilsContractProcess = async (from, contract, method, parameters, value, privateKey, password, execution, loopTime=0, endTime=0) => {
     const Contract = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
     const ContractInfo = JSON.parse(Contract);
     const abi = JSON.parse(ContractInfo.abi);
     const { address } = ContractInfo;
     const { methodABI, decodeTypesArray } = methodProcess(method, abi);
     const data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
+    console.log('pass contract process!');
 
-    if (execution === 'write') UtilsSendTx(_from, address, _value, data, _password, _privateKey);
+    if (execution === 'write') return UtilsSendTx(from, address, value, data, password, privateKey);
     else if (execution === 'read') {
       const txObject = { to: address, data };
       const returnData = await web3.eth.call(txObject);
       const result = await web3.eth.abi.decodeParameters(decodeTypesArray, returnData);
-      console.log(result);
       return result;
-    } else {
-      return new Error('send tx execution have some problem!');
+    } 
+    else if(execution === 'loopWrite') {
+      if(password !== '' && privateKey === '') UtilsLoopSendTxByPassword(from, to, value, data, password, loopTime, endTime);
+      else if (privateKey !== '' && password === '') UtilsLoopSendTxByPrivatekey(to, value, data, privateKey, loopTime, endTime);
+      else return new Error('loop write process failed!');
     }
-
-
+    else return new Error('send tx execution have some problem!');
   }
 
-  async function UtilsSendTx(from, to, value, data, password, privateKey) {
+  UtilsSendTx = async (from, to, value, data, password, privateKey) => {
     let txObject = {
       to,
       value,
@@ -204,8 +211,8 @@ class web3Operator {
 
     if (!privateKey) txObject.nonce = await web3.eth.getTransactionCount(from);
     console.log('ready to send');
-    let signed;
 
+    let signed;
     if (password !== '' && privateKey === '') {
       txObject.nonce = await web3.eth.getTransactionCount(from);
       txObject.from = from;
@@ -215,19 +222,50 @@ class web3Operator {
       txObject.nonce = await web3.eth.getTransactionCount(address);
       signed = await web3.eth.accounts.signTransaction(txObject, privateKey);
     } else {
-      return new Error('send transaction have some problem');
+      return new Error('send transaction failed!');
     }
 
-    web3.eth.sendSignedTransaction(signed.rawTransaction)
-      .on('receipt', receipt => console.log(receipt))
+    return web3.eth.sendSignedTransaction(signed.rawTransaction)
+      .on('receipt', receipt => {return receipt})
       .on('error', err => new Error(err))
   }
 
   // 可以重複發送多個tx，只要設定loop 時間 和 結束時間即可
-  function UtilsSendTxForLoop(to, value, data, privateKey, loopTime, endTime) {
+  UtilsLoopSendTxByPassword = (from, to, value, data, password, loopTime, endTime) => {
     let acceptedTxCount = 0;
     let count = 0;
-    let nonce = await web3.eth.getTransactionCount(_from);
+    let nonce = await web3.eth.getTransactionCount(from);
+
+    console.log('Loop process begin! ');
+    const txAcceptCounter = setInterval(async () => {
+      const txObject = {
+        from,
+        to,
+        value,
+        data,
+        nonce: nonce + count,
+        gas: await web3.eth.estimateGas({ to, data }),
+      };
+      count += 1;
+
+      web3.eth.accounts.signTransaction(txObject, from, password).then((result) => {
+        web3.eth.sendSignedTransaction(result.rawTransaction)
+          .on('receipt', () => acceptedTxCount += 1)
+          .on('error', console.log);
+      });
+    }, loopTime * 1000);
+
+    setTimeout(() => {
+      console.log('num of contract transaction verified: ', acceptedTxCount);
+      return clearInterval(txAcceptCounter);
+    }, endTime * 1000);
+  }
+
+  UtilsLoopSendTxByPrivatekey = (to, value, data, privateKey, loopTime, endTime) => {
+    const address = await web3.eth.accounts.privateKeyToAccount(privateKey);
+    let acceptedTxCount = 0;
+    let count = 0;
+    let nonce = await web3.eth.getTransactionCount(address);
 
     console.log('Loop process begin! ');
     const txAcceptCounter = setInterval(async () => {
@@ -249,12 +287,11 @@ class web3Operator {
 
     setTimeout(() => {
       console.log('num of contract transaction verified: ', acceptedTxCount);
-      clearInterval(txAcceptCounter);
+      return clearInterval(txAcceptCounter);
     }, endTime * 1000);
   }
 
-
-  function methodProcess(method, abi) {
+  methodProcess = (method, abi) => {
     const arr = [];
     const methodABI = {};
     const decodeTypesArray = [];
