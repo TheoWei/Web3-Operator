@@ -23,7 +23,7 @@ class web3Operator {
     return decrypted;
   }
   importKey = async (privateKey, password) => {
-    let address = await web3.eth.personal.importRawKey(privateKey, password);
+    await web3.eth.personal.importRawKey(privateKey, password);
     return true;
   }
   encryptAccount = async (privateKey, password) => {
@@ -96,8 +96,8 @@ class web3Operator {
 
     const output = { contract, abi, bytecode };
     return fs.writeFile(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(output), (err, file) => {
-      if (!err) console.log('writed abi! ');
-      else console.log(err);
+      if (!err) return 'contract been compiled';
+      else return new Error(err);
     });
   };
 
