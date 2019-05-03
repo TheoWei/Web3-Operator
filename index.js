@@ -94,36 +94,32 @@ class web3Operator {
     const bytecode = '0x' + compiledContract.contracts[`:${_contract}`].bytecode;
     const abi = compiledContract.contracts[`:${_contract}`].interface;
 
-    const output = { contract, abi, bytecode };
-    return fs.writeFile(`../contract_detail_repo/${contract}_info.json`, JSON.stringify(output), (err, file) => {
-      if (!err) return 'contract been compiled';
-      else return new Error(err);
-    });
+    return {contract, abi, bytecode};
   };
 
-  privateKeyToDeploy = (contract, privateKey) => {
-    UtilsContractDeploy(contract, '', '', privateKey);
+  privateKeyToDeploy = (bytecode, privateKey) => {
+    return UtilsContractDeploy(bytecode, '', '', privateKey);
   };
-  accountToDeploy = (contract, from, password) => {
-    UtilsContractDeploy(contract, from, password, '');
-  };
-
-  readContract = (contract, method, parameters) => {
-    return UtilsContractProcess(contract, method, parameters, 0, '', '', 'read');
+  accountToDeploy = (bytecode, from, password) => {
+    return UtilsContractDeploy(bytecode, from, password, '');
   };
 
-  accountToWriteContract = (from, contract, method, parameters, value, password) => {
-    UtilsContractProcess(from, contract, method, parameters, value, '', password, 'write');
-  };
-  privateKeyToWriteContract = (contract, method, parameters, value, privateKey) => {
-    UtilsContractProcess('', contract, method, parameters, value, privateKey, '', 'write');
+  readContract = (contractAddress, abi, method, parameters) => {
+    return UtilsContractProcess('',contractAddress, abi, method, parameters, 0, '', '', 'read');
   };
 
-  accountToLoopWriteContract = (from, contract, method, parameters, value, password, loopTime, endTime) => {
-    UtilsContractProcess(from, contract, method, parameters, value, '', password, 'loopWrite', loopTime, endTime);
+  accountToWriteContract = (from, contractAddress, abi, method, parameters, value, password) => {
+    return UtilsContractProcess(from, contractAddress, abi, method, parameters, value, '', password, 'write');
   };
-  privateKeyToLoopWriteContract = (contract, method, parameters, value, privateKey, loopTime, endTime) => {
-    UtilsContractProcess('', contract, method, parameters, value, privateKey, '', 'loopWrite', loopTime, endTime);
+  privateKeyToWriteContract = (contractAddress, abi, method, parameters, value, privateKey) => {
+    return UtilsContractProcess('', contractAddress, abi, method, parameters, value, privateKey, '', 'write');
+  };
+
+  accountToLoopWriteContract = (from, contractAddress, abi, method, parameters, value, password, loopTime, endTime) => {
+    return UtilsContractProcess(from, contractAddress, abi, method, parameters, value, '', password, 'loopWrite', loopTime, endTime);
+  };
+  privateKeyToLoopWriteContract = (contractAddress, method, parameters, value, privateKey, loopTime, endTime) => {
+    return UtilsContractProcess('', contractAddress, abi, method, parameters, value, privateKey, '', 'loopWrite', loopTime, endTime);
   };
 
   ListeningEvent = (type, host, port) => {
@@ -156,11 +152,7 @@ class web3Operator {
 
   // utils send transaciton function & Contract Process
   // 【test for check receipt info】
-  UtilsContractDeploy = async (contract, from, password, privateKey) => {
-    const Contract = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
-    const ContractInfo = JSON.parse(Contract);
-    const { bytecode } = ContractInfo;
-
+  UtilsContractDeploy = async (bytecode, from, password, privateKey) => {
     const txObject = {
       data: bytecode,
       gas: await web3.eth.estimateGas({ data: bytecode })
@@ -177,25 +169,21 @@ class web3Operator {
   }
 
 
-  UtilsContractProcess = async (from, contract, method, parameters, value, privateKey, password, execution, loopTime=0, endTime=0) => {
-    const Contract = fs.readFileSync(`../contract_detail_repo/${contract}_info.json`, 'utf8');
-    const ContractInfo = JSON.parse(Contract);
-    const abi = JSON.parse(ContractInfo.abi);
-    const { address } = ContractInfo;
+  UtilsContractProcess = async (from, to, abi, method, parameters, value, privateKey, password, execution, loopTime=0, endTime=0) => {
     const { methodABI, decodeTypesArray } = methodProcess(method, abi);
     const data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
     console.log('pass contract process!');
 
-    if (execution === 'write') return UtilsSendTx(from, address, value, data, password, privateKey);
+    if (execution === 'write') return UtilsSendTx(from, to, value, data, password, privateKey);
     else if (execution === 'read') {
-      const txObject = { to: address, data };
+      const txObject = {to, data};
       const returnData = await web3.eth.call(txObject);
       const result = await web3.eth.abi.decodeParameters(decodeTypesArray, returnData);
       return result;
     } 
     else if(execution === 'loopWrite') {
-      if(password !== '' && privateKey === '') UtilsLoopSendTxByPassword(from, to, value, data, password, loopTime, endTime);
-      else if (privateKey !== '' && password === '') UtilsLoopSendTxByPrivatekey(to, value, data, privateKey, loopTime, endTime);
+      if(password !== '' && privateKey === '') return UtilsLoopSendTxByPassword(from, to, value, data, password, loopTime, endTime);
+      else if (privateKey !== '' && password === '') return UtilsLoopSendTxByPrivatekey(to, value, data, privateKey, loopTime, endTime);
       else return new Error('loop write process failed!');
     }
     else return new Error('send tx execution have some problem!');
@@ -257,7 +245,8 @@ class web3Operator {
 
     setTimeout(() => {
       console.log('num of contract transaction verified: ', acceptedTxCount);
-      return clearInterval(txAcceptCounter);
+      clearInterval(txAcceptCounter);
+      return true;
     }, endTime * 1000);
   }
 
@@ -287,7 +276,8 @@ class web3Operator {
 
     setTimeout(() => {
       console.log('num of contract transaction verified: ', acceptedTxCount);
-      return clearInterval(txAcceptCounter);
+      clearInterval(txAcceptCounter);
+      return true;
     }, endTime * 1000);
   }
 
