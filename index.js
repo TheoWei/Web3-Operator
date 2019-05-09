@@ -1,80 +1,40 @@
-"use strict";
 const fs = require('fs');
 const Web3 = require('web3');
 const solc = require('solc');
 
-class web3Operator {
-  constructor(rpcUrl) {
-    var web3 = new Web3(rpcUrl);
-    if (web3.eth.net.isListening()) console.log('network connected!');
-  }
+function web3Operator(rpcUrl) {
+  const web3 = new Web3(rpcUrl);
+  if (web3.eth.net.isListening()) console.log('ethereum node connected!');
 
-    // account operation 
-  createAccount = (random) => {
+  // account operation 
+  this.createAccount = (random) => {
     let accountObject = web3.eth.accounts.create(random);
     return accountObject;
   }
-  queryAccount = (prikey) => {
+  this.queryAccount = (prikey) => {
     let account = web3.eth.accounts.privateKeyToAccount(prikey);
     return account.address;
   }
-  decryptAccount = async (keyStoreJson, password) => {
+  this.decryptAccount = async (keyStoreJson, password) => {
     let decrypted = await web3.eth.accounts.decrypt(keyStoreJson, password);
     return decrypted;
   }
-  importKey = async (privateKey, password) => {
+  this.importKey = async (privateKey, password) => {
     await web3.eth.personal.importRawKey(privateKey, password);
     return true;
   }
-  encryptAccount = async (privateKey, password) => {
+  this.encryptAccount = async (privateKey, password) => {
     let keyStoreJson = await web3.eth.accounts.encrypt(privateKey, password);
     return keyStoreJson;
   }
-  sha3_hash = (data) => {
+  this.sha3_hash = (data) => {
     let hash_data = web3.utils.sha3(JSON.stringify(data))
     return hash_data;
   }
 
 
   // general function
-  Crypto = (data, exec) => {
-    const crypto = require('crypto');
-    const algorithm = 'aes-256-cbc';
-    const key = crypto.randomBytes(32);
-    const iv = crypto.randomBytes(16);
-
-
-    if (exec == 'encrypt') {
-      data = JSON.stringify(data);
-      console.log('start encrypt');
-      const enc_data = encrypt(data);
-      return enc_data;
-    } if (exec == 'decrypt') {
-      console.log('start decrypt');
-      const dec_data = decrypt(data);
-      return dec_data;
-    }
-    return console.error('error');
-
-
-    function encrypt(data) {
-      const cipher = crypto.createCipheriv(algorithm, key, iv);
-      let encrypted = cipher.update(data);
-      encrypted = Buffer.concat([encrypted, cipher.final()]);
-      return { key: key.toString('hex'), iv: iv.toString('hex'), encryptedData: encrypted.toString('hex') };
-    }
-    function decrypt(data) {
-      const _iv = Buffer.from(data.iv, 'hex');
-      const _key = Buffer.from(data.key, 'hex');
-      const _encryptedData = Buffer.from(data.encryptedData, 'hex');
-      const decipher = crypto.createDecipheriv(algorithm, _key, _iv);
-      let decrypted = decipher.update(_encryptedData);
-      decrypted = Buffer.concat([decrypted, decipher.final()]);
-      return decrypted.toString();
-    }
-  };
-
-  sha3Hash = (data) => {
+  this.sha3Hash = (data) => {
     data = JSON.stringify(data);
     const hash_data = web3.utils.sha3(data);
     return hash_data;
@@ -82,7 +42,7 @@ class web3Operator {
 
 
   // contract interaction
-  compiles = (contract) => {
+  this.compiles = (contract) => {
     // load file > compile > get abi & bytecode
     console.log('read file...');
     const file = fs.readFileSync(`/contract/${contract}.sol`, 'utf8');
@@ -90,39 +50,46 @@ class web3Operator {
 
     const compiledContract = solc.compile(file);
     console.log('done');
-    
+
     const bytecode = '0x' + compiledContract.contracts[`:${_contract}`].bytecode;
     const abi = compiledContract.contracts[`:${_contract}`].interface;
 
-    return {contract, abi, bytecode};
+    return { contract, abi, bytecode };
   };
 
-  privateKeyToDeploy = (bytecode, privateKey) => {
+  this.privateKeyToDeploy = (bytecode, privateKey) => {
     return UtilsContractDeploy(bytecode, '', '', privateKey);
   };
-  accountToDeploy = (bytecode, from, password) => {
+  this.accountToDeploy = (bytecode, from, password) => {
     return UtilsContractDeploy(bytecode, from, password, '');
   };
 
-  readContract = (contractAddress, abi, method, parameters) => {
-    return UtilsContractProcess('',contractAddress, abi, method, parameters, 0, '', '', 'read');
+  this.readContract = (contractAddress, abi, method, parameters) => {
+    return UtilsContractProcess('', contractAddress, abi, method, parameters, 0, '', '', 'read');
   };
 
-  accountToWriteContract = (from, contractAddress, abi, method, parameters, value, password) => {
+  this.accountToSendEther = (from, to, value, password) => {
+    return UtilsSendTx(from, to, value, '', password, '');
+  };
+  this.privateKeyToSendEther = (from, to, value, privateKey) => {
+    return UtilsSendTx(from, to, value, '', '', privateKey);
+  };
+
+  this.accountToWriteContract = (from, contractAddress, abi, method, parameters, value, password) => {
     return UtilsContractProcess(from, contractAddress, abi, method, parameters, value, '', password, 'write');
   };
-  privateKeyToWriteContract = (contractAddress, abi, method, parameters, value, privateKey) => {
+  this.privateKeyToWriteContract = (contractAddress, abi, method, parameters, value, privateKey) => {
     return UtilsContractProcess('', contractAddress, abi, method, parameters, value, privateKey, '', 'write');
   };
 
-  accountToLoopWriteContract = (from, contractAddress, abi, method, parameters, value, password, loopTime, endTime) => {
+  this.accountToLoopWriteContract = (from, contractAddress, abi, method, parameters, value, password, loopTime, endTime) => {
     return UtilsContractProcess(from, contractAddress, abi, method, parameters, value, '', password, 'loopWrite', loopTime, endTime);
   };
-  privateKeyToLoopWriteContract = (contractAddress, method, parameters, value, privateKey, loopTime, endTime) => {
+  this.privateKeyToLoopWriteContract = (contractAddress, method, parameters, value, privateKey, loopTime, endTime) => {
     return UtilsContractProcess('', contractAddress, abi, method, parameters, value, privateKey, '', 'loopWrite', loopTime, endTime);
   };
 
-  ListeningEvent = (type, host, port) => {
+  this.ListeningEvent = (type, host, port) => {
     const wsUrl = `ws://${host}:${port}`;
     const wsWeb3 = new Web3(new Web3.providers.WebsocketProvider(wsUrl, { headers: { Origin: `http://${host}` } }));
 
@@ -152,7 +119,7 @@ class web3Operator {
 
   // utils send transaciton function & Contract Process
   // 【test for check receipt info】
-  UtilsContractDeploy = async (bytecode, from, password, privateKey) => {
+  this.UtilsContractDeploy = async (bytecode, from, password, privateKey) => {
     const txObject = {
       data: bytecode,
       gas: await web3.eth.estimateGas({ data: bytecode })
@@ -165,31 +132,31 @@ class web3Operator {
     else return new Error('didn\'t insert account key or password');
 
     return web3.eth.sendSignedTransaction(signed.rawTransaction)
-            .on('receipt', receipt => {return receipt});
+      .on('receipt', receipt => { return receipt });
   }
 
 
-  UtilsContractProcess = async (from, to, abi, method, parameters, value, privateKey, password, execution, loopTime=0, endTime=0) => {
+  this.UtilsContractProcess = async (from, to, abi, method, parameters, value, privateKey, password, execution, loopTime = 0, endTime = 0) => {
     const { methodABI, decodeTypesArray } = methodProcess(method, abi);
     const data = web3.eth.abi.encodeFunctionCall(methodABI, parameters);
     console.log('pass contract process!');
 
     if (execution === 'write') return UtilsSendTx(from, to, value, data, password, privateKey);
     else if (execution === 'read') {
-      const txObject = {to, data};
+      const txObject = { to, data };
       const returnData = await web3.eth.call(txObject);
       const result = await web3.eth.abi.decodeParameters(decodeTypesArray, returnData);
       return result;
-    } 
-    else if(execution === 'loopWrite') {
-      if(password !== '' && privateKey === '') return UtilsLoopSendTxByPassword(from, to, value, data, password, loopTime, endTime);
+    }
+    else if (execution === 'loopWrite') {
+      if (password !== '' && privateKey === '') return UtilsLoopSendTxByPassword(from, to, value, data, password, loopTime, endTime);
       else if (privateKey !== '' && password === '') return UtilsLoopSendTxByPrivatekey(to, value, data, privateKey, loopTime, endTime);
       else return new Error('loop write process failed!');
     }
     else return new Error('send tx execution have some problem!');
   }
 
-  UtilsSendTx = async (from, to, value, data, password, privateKey) => {
+  this.UtilsSendTx = async (from, to, value, data, password, privateKey) => {
     let txObject = {
       to,
       value,
@@ -214,12 +181,12 @@ class web3Operator {
     }
 
     return web3.eth.sendSignedTransaction(signed.rawTransaction)
-      .on('receipt', receipt => {return receipt})
+      .on('receipt', receipt => { return receipt })
       .on('error', err => new Error(err))
   }
 
   // 可以重複發送多個tx，只要設定loop 時間 和 結束時間即可
-  UtilsLoopSendTxByPassword = (from, to, value, data, password, loopTime, endTime) => {
+  this.UtilsLoopSendTxByPassword = async (from, to, value, data, password, loopTime, endTime) => {
     let acceptedTxCount = 0;
     let count = 0;
     let nonce = await web3.eth.getTransactionCount(from);
@@ -250,7 +217,7 @@ class web3Operator {
     }, endTime * 1000);
   }
 
-  UtilsLoopSendTxByPrivatekey = (to, value, data, privateKey, loopTime, endTime) => {
+  this.UtilsLoopSendTxByPrivatekey = async (to, value, data, privateKey, loopTime, endTime) => {
     const address = await web3.eth.accounts.privateKeyToAccount(privateKey);
     let acceptedTxCount = 0;
     let count = 0;
@@ -281,7 +248,7 @@ class web3Operator {
     }, endTime * 1000);
   }
 
-  methodProcess = (method, abi) => {
+  this.methodProcess = (method, abi) => {
     const arr = [];
     const methodABI = {};
     const decodeTypesArray = [];
